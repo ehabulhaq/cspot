@@ -1,6 +1,7 @@
 set(COMPONENT_SRCS
     "main.cpp"
     "ESPFile.cpp"
+    "wifi_mesh_stream.c"
     "sinks/AC101AudioSink.cpp"
     "sinks/BufferedAudioSink.cpp"
     "sinks/ES9018AudioSink.cpp"

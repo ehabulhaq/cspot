@@ -301,6 +301,11 @@ mwifi_init_config_t cfg = MWIFI_INIT_CONFIG_DEFAULT();
 }
 void app_main(void)
 {
+    
+    esp_log_level_set("*", ESP_LOG_ERROR);
+    esp_log_level_set(TAG, ESP_LOG_DEBUG);
+
+
     esp_err_t ret = nvs_flash_init();
     if (ret == ESP_ERR_NVS_NO_FREE_PAGES || ret == ESP_ERR_NVS_NEW_VERSION_FOUND)
     {
@@ -326,15 +331,15 @@ void app_main(void)
 
     while(1)
     {
-        esp_wifi_get_mac(ESP_IF_WIFI_STA, sta_mac);
-        esp_wifi_ap_get_sta_list(&wifi_sta_list);
-        esp_mesh_get_parent_bssid(&parent_bssid);
+        // esp_wifi_get_mac(ESP_IF_WIFI_STA, sta_mac);
+        // esp_wifi_ap_get_sta_list(&wifi_sta_list);
+        // esp_mesh_get_parent_bssid(&parent_bssid);
 
-        MDF_LOGI("System information, channel: %d, layer: %d, self mac: " MACSTR ", parent bssid: " MACSTR
-        ", parent rssi: %d, node num: %d, free heap: %u",
-        primary,
-        esp_mesh_get_layer(), MAC2STR(sta_mac), MAC2STR(parent_bssid.addr),
-        mwifi_get_parent_rssi(), esp_mesh_get_total_node_num(), esp_get_free_heap_size());
+        // MDF_LOGI("System information, channel: %d, layer: %d, self mac: " MACSTR ", parent bssid: " MACSTR
+        // ", parent rssi: %d, node num: %d, free heap: %u",
+        // primary,
+        // esp_mesh_get_layer(), MAC2STR(sta_mac), MAC2STR(parent_bssid.addr),
+        // mwifi_get_parent_rssi(), esp_mesh_get_total_node_num(), esp_get_free_heap_size());
 
         //MDF_LOGI("tsf_time: %lld", esp_mesh_get_tsf_time());
         //mesh_light_set(esp_mesh_get_layer());

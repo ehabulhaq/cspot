@@ -1,0 +1,30 @@
+{
+    "configurations": [
+        {
+            "name": "Win32",
+            "includePath": [
+                "${default}",
+                "${config:idf.espIdfPath}/components/**",
+                "${config:idf.espIdfPathWin}/components/**",
+                "${config:idf.espAdfPath}/components/**",
+                "${config:idf.espAdfPathWin}/components/**",
+                "${config:idf.espMdfPathWin}/components/**",
+                "${workspaceFolder}/**",
+                "C:/Users/haqeh/Desktop/Brian_stover/cspot/cspot/include",
+                "C:/Users/haqeh/Desktop/Brian_stover/cspot/cspot/src",
+                "C:/Users/haqeh/esp/examples/common_components/protocol_examples_common/include**"
+            ],
+            "defines": [
+                "_DEBUG",
+                "UNICODE",
+                "_UNICODE"
+            ],
+            "windowsSdkVersion": "10.0.19041.0",
+            "cStandard": "c17",
+            "cppStandard": "c++17",
+            "intelliSenseMode": "windows-msvc-x64",
+            "compilerPath": "C:/Program Files (x86)/Microsoft Visual Studio/2019/BuildTools/VC/Tools/MSVC/14.28.29910/bin/Hostx64/x64/cl.exe"
+        }
+    ],
+    "version": 4
+}
