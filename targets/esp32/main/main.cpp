@@ -38,12 +38,17 @@
 #include "freertos/event_groups.h"
 #include "lwip/err.h"
 #include "lwip/sys.h"
+#include "wifi_mesh_stream.h"
+#include "driver/gpio.h"
 
 // Config
 #define SINK        ES8018 // INTERNAL, AC101, ES8018, PCM5102
-#define QUALITY     320      // 320, 160, 96
-#define DEVICE_NAME "CSpot"
+#define QUALITY     96      // 320, 160, 96
+#define DEVICE_NAME "TruScapes Speakers"
 #define WIFI_HOME   1
+
+#define PA_CTRL    (22)
+#define GPIO_OUTPUT_PIN_PA_CTRL  ((1ULL<<PA_CTRL))
 
 #include <ES9018AudioSink.h>
 
@@ -245,8 +250,19 @@ static mdf_err_t event_loop_cb(mdf_event_loop_t event, void *ctx)
         }
         break;
 
+    case MDF_EVENT_MWIFI_ROUTING_TABLE_ADD:
+        MDF_LOGI("Child is connected on station interface");
+        update_station_list();
+        break;
+
+    case MDF_EVENT_MWIFI_ROUTING_TABLE_REMOVE:
+        MDF_LOGI("Child is disconnected on station interface");
+        update_station_list();
+        break;
+
     case MDF_EVENT_MWIFI_PARENT_DISCONNECTED:
         MDF_LOGI("Parent is disconnected on station interface");
+        
         break;
     case MDF_EVENT_MWIFI_ROOT_GOT_IP:
         MDF_LOGI("Root obtains the IP address. It is posted by LwIP stack automatically");
@@ -268,8 +284,16 @@ mwifi_init_config_t cfg = MWIFI_INIT_CONFIG_DEFAULT();
     mwifi_config_t config = {};
     strcpy((char*)config.mesh_id, "12345");
     strcpy((char*)config.mesh_password, "12345678");
+#if WIFI_HOME
     strcpy((char*)config.router_ssid, "Haq's Home");
     strcpy((char*)config.router_password, "ehabulhaq");
+#else
+    strcpy((char*)config.router_ssid, "Tru-Scapes");
+    strcpy((char*)config.router_password, "tru12345");
+
+        //config.router_ssid = "Tru-Scapes",
+        //config.router_password = "tru12345",
+#endif  
     config.mesh_type = MWIFI_MESH_ROOT;
     config.channel = CONFIG_MESH_CHANNEL;
 
@@ -302,9 +326,19 @@ mwifi_init_config_t cfg = MWIFI_INIT_CONFIG_DEFAULT();
 void app_main(void)
 {
     
-    esp_log_level_set("*", ESP_LOG_ERROR);
-    esp_log_level_set(TAG, ESP_LOG_DEBUG);
+    gpio_config_t io_conf;
+    io_conf.intr_type = GPIO_INTR_DISABLE;
+    io_conf.mode = GPIO_MODE_OUTPUT;
+    //io_conf.pull_down_en = 0;
+    //io_conf.pull_up_en = 0;
+    io_conf.pin_bit_mask = GPIO_OUTPUT_PIN_PA_CTRL;
+    //configure GPIO with the given settings
+    gpio_config(&io_conf);
+    gpio_set_level((gpio_num_t)PA_CTRL,true);
 
+    esp_log_level_set("*", ESP_LOG_WARN);
+    esp_log_level_set(TAG, ESP_LOG_DEBUG);
+    //esp_log_level_set("bufferedaudioSink", ESP_LOG_INFO);
 
     esp_err_t ret = nvs_flash_init();
     if (ret == ESP_ERR_NVS_NO_FREE_PAGES || ret == ESP_ERR_NVS_NEW_VERSION_FOUND)
@@ -320,7 +354,7 @@ void app_main(void)
     ESP_LOGI(TAG, "[ 1 ] Start codec chip");
     audio_board_handle_t board_handle = audio_board_init();
     audio_hal_ctrl_codec(board_handle->audio_hal, AUDIO_HAL_CODEC_MODE_DECODE, AUDIO_HAL_CTRL_START);
-
+    audio_hal_set_volume (board_handle->audio_hal, 100);
 
     mesh_init();
 

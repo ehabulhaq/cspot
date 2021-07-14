@@ -104,6 +104,7 @@ typedef struct
  */
 audio_element_handle_t mesh_stream_init(mesh_stream_cfg_t *config);
 esp_err_t _mesh_write(audio_element_handle_t self, char *buffer, int len, TickType_t ticks_to_wait, void *context);
+void update_station_list();
 #ifdef __cplusplus
 }
 #endif

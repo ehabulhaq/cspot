@@ -12,62 +12,62 @@ public:
     static void debug(std::string filename, int line, const char *format, ...)
     {
 
-        printf(colorRed);
-        printf("D ");
-        printFilename(filename);
-        printf(":%d: ", line);
-        va_list args;
-        va_start(args, format);
-        vprintf(format, args);
-        va_end(args);
-        printf("\n");
+        // printf(colorRed);
+        // printf("D ");
+        // printFilename(filename);
+        // printf(":%d: ", line);
+        // va_list args;
+        // va_start(args, format);
+        // vprintf(format, args);
+        // va_end(args);
+        // printf("\n");
     };
 
     static void error(std::string filename, int line, const char *format, ...)
     {
 
-        printf(colorRed);
-        printf("E ");
-        printFilename(filename);
-        printf(":%d: ", line);
-        printf(colorRed);
-        va_list args;
-        va_start(args, format);
-        vprintf(format, args);
-        va_end(args);
-        printf("\n");
+        // printf(colorRed);
+        // printf("E ");
+        // printFilename(filename);
+        // printf(":%d: ", line);
+        // printf(colorRed);
+        // va_list args;
+        // va_start(args, format);
+        // vprintf(format, args);
+        // va_end(args);
+        // printf("\n");
     };
 
     static void info(std::string filename, int line, const char *format, ...)
     {
 
-        printf(colorBlue);
-        printf("I ");
-        printFilename(filename);
-        printf(":%d: ", line);
-        printf(colorReset);
-        va_list args;
-        va_start(args, format);
-        vprintf(format, args);
-        va_end(args);
-        printf("\n");
+        // printf(colorBlue);
+        // printf("I ");
+        // printFilename(filename);
+        // printf(":%d: ", line);
+        // printf(colorReset);
+        // va_list args;
+        // va_start(args, format);
+        // vprintf(format, args);
+        // va_end(args);
+        // printf("\n");
     };
 
     static void printFilename(std::string filename)
     {
-        std::string basenameStr(filename.substr(filename.rfind("/") + 1));
-        unsigned long hash = 5381;
-        int c;
+        // std::string basenameStr(filename.substr(filename.rfind("/") + 1));
+        // unsigned long hash = 5381;
+        // int c;
 
-        for (char const &c : basenameStr)
-        {
-            hash = ((hash << 5) + hash) + c; /* hash * 33 + c */
-        }
+        // for (char const &c : basenameStr)
+        // {
+        //     hash = ((hash << 5) + hash) + c; /* hash * 33 + c */
+        // }
 
-        printf("\e[0;%dm", allColors[hash % NColors]);
+        // printf("\e[0;%dm", allColors[hash % NColors]);
 
-        printf("%s", basenameStr.c_str());
-        printf(colorReset);
+        // printf("%s", basenameStr.c_str());
+        // printf(colorReset);
     }
 
 private:

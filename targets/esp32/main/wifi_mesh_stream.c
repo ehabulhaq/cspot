@@ -8,6 +8,9 @@
 
 static const char *TAG = "MESH_STREAM";
 
+
+wifi_sta_list_t wifi_sta_list = {0x0};
+
 typedef struct mesh_stream
 {
     esp_transport_handle_t t;
@@ -62,22 +65,35 @@ static esp_err_t _mesh_read(audio_element_handle_t self, char *buffer, int len, 
     return len;
 }
 
-esp_err_t _mesh_write(audio_element_handle_t self, char *buffer, int len, TickType_t ticks_to_wait, void *context)
+void update_station_list()
 {
-    wifi_sta_list_t wifi_sta_list = {0x0};
-    mwifi_data_type_t data_type = {0};
-    mdf_err_t ret = MDF_OK;
-
     if ( esp_wifi_ap_get_sta_list(&wifi_sta_list) == ESP_OK)
     {
-        ret = mwifi_root_write(wifi_sta_list.sta[0].mac, 1, &data_type, buffer, len, false);
-
     }
-    //uint8_t dst_addr[MWIFI_ADDR_LEN] = wifi_sta_list.;
-    
-    //data_type.communicate = MWIFI_COMMUNICATE_BROADCAST;
-    
 
+}
+
+uint8_t dst_addr[MWIFI_ADDR_LEN] = MWIFI_ADDR_BROADCAST; 
+mwifi_data_type_t data_type = {0};
+mwifi_data_type_t data_type_rec = {0};
+char data[20];
+size_t size = sizeof(data);
+uint8_t src_addr[MWIFI_ADDR_LEN] = {0x0};
+
+esp_err_t _mesh_write(audio_element_handle_t self, char *buffer, int len, TickType_t ticks_to_wait, void *context)
+{
+    data_type.communicate = MWIFI_COMMUNICATE_MULTICAST;
+    mdf_err_t ret = MDF_OK;
+
+    if (wifi_sta_list.num > 0)
+    {
+        //ret = mwifi_root_read(src_addr, &data_type_rec, data, &size, portMAX_DELAY);
+        ret = mwifi_root_write(dst_addr, 1, &data_type, buffer, len, false);
+    }
+
+    //wifi_sta_list.;
+    //wifi_sta_list.sta[0].mac
+    //data_type.communicate = MWIFI_COMMUNICATE_BROADCAST;
     ESP_LOGD(TAG, "read len=%d, ret=%d", len, ret);
     return len;
 }

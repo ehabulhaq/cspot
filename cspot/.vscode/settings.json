@@ -1,4 +1,18 @@
 {
     "idf.portWin": "COM5",
-    "idf.flashType": "UART"
+    "idf.flashType": "UART",
+    "files.associations": {
+        "array": "cpp",
+        "chrono": "cpp",
+        "compare": "cpp",
+        "functional": "cpp",
+        "memory": "cpp",
+        "ratio": "cpp",
+        "tuple": "cpp",
+        "type_traits": "cpp",
+        "utility": "cpp",
+        "xmemory": "cpp",
+        "xtr1common": "cpp",
+        "xutility": "cpp"
+    }
 }
