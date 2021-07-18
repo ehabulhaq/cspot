@@ -43,7 +43,7 @@
 
 // Config
 #define SINK        ES8018 // INTERNAL, AC101, ES8018, PCM5102
-#define QUALITY     96      // 320, 160, 96
+#define QUALITY     320      // 320, 160, 96
 #define DEVICE_NAME "TruScapes Speakers"
 #define WIFI_HOME   1
 
@@ -338,7 +338,7 @@ void app_main(void)
 
     esp_log_level_set("*", ESP_LOG_WARN);
     esp_log_level_set(TAG, ESP_LOG_DEBUG);
-    //esp_log_level_set("bufferedaudioSink", ESP_LOG_INFO);
+    esp_log_level_set("bufferedaudioSink", ESP_LOG_INFO);
 
     esp_err_t ret = nvs_flash_init();
     if (ret == ESP_ERR_NVS_NO_FREE_PAGES || ret == ESP_ERR_NVS_NEW_VERSION_FOUND)

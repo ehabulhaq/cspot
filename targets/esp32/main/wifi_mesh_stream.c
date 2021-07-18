@@ -83,18 +83,54 @@ uint8_t src_addr[MWIFI_ADDR_LEN] = {0x0};
 esp_err_t _mesh_write(audio_element_handle_t self, char *buffer, int len, TickType_t ticks_to_wait, void *context)
 {
     data_type.communicate = MWIFI_COMMUNICATE_MULTICAST;
-    mdf_err_t ret = MDF_OK;
 
-    if (wifi_sta_list.num > 0)
-    {
+    esp_err_t ret; 
+    mesh_addr_t dest; //Packet's destination address
+    mesh_data_t data_des; //Packet's data descriptor
+    int send_flag = 0; //Packet's flag
+    mesh_opt_t send_opt; //Possible additional send option
+
+    //2) Packet Data Description Initialization
+    data_des.data = (uint8_t*) buffer;                                         //Address of the sending buffer
+    data_des.size = len ;                                           //Size of the packet's payload
+    data_des.proto = MESH_PROTO_BIN;                                //Payload's protocol
+    data_des.tos = MESH_TOS_P2P;                                    //Packet's type of service
+
+    //send_flag += MESH_DATA_NONBLOCK; 
+    send_flag += MESH_DATA_DROP;
+    send_flag += MESH_DATA_P2P; //Defines that the packet is destined
+
+    memcpy(dest.addr, wifi_sta_list.sta[0].mac, 6);
+
+    int retry_count = 3;
+    //ret = esp_mesh_send(&dest,&data_des,send_flag,NULL,0); //Send the packet
+
+    ESP_LOGI(TAG, "write len=%d", data_des.size);
+       // do {
+            /**< Send a packet over the mesh network */
+            
+
+        //     if (ret == ESP_ERR_MESH_NO_MEMORY) {
+        //         MDF_LOGW("<%s> esp_mesh_send", mdf_err_to_name(ret));
+        //         vTaskDelay(100 / portTICK_PERIOD_MS);
+        //     }
+        // } while (ret == ESP_ERR_MESH_NO_MEMORY && --retry_count);
+
+
+    //send_ret = esp_mesh_send(&dest,&data_des,send_flag,NULL,0); //Send the packet
+
+    // if (wifi_sta_list.num > 0)
+    // {
         //ret = mwifi_root_read(src_addr, &data_type_rec, data, &size, portMAX_DELAY);
-        ret = mwifi_root_write(dst_addr, 1, &data_type, buffer, len, false);
-    }
+        ret = mwifi_root_write(dst_addr, 1, &data_type, buffer, len, true);
+
+    //     esp_mesh_send(mesh_addr, const mesh_data_t *data, int flag, const mesh_opt_t opt[],  int opt_count);
+    // }
 
     //wifi_sta_list.;
     //wifi_sta_list.sta[0].mac
     //data_type.communicate = MWIFI_COMMUNICATE_BROADCAST;
-    ESP_LOGD(TAG, "read len=%d, ret=%d", len, ret);
+    //ESP_LOGD(TAG, "read len=%d, ret=%d", len, send_ret);
     return len;
 }
 
