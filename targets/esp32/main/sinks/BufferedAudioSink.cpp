@@ -61,7 +61,7 @@ static void meshFeed(void *pvParameters)
         freeSize = *((int * ) data);
         
         //memset ( &freeSize, (int *) data, size);
-        if ( freeSize < 1024 * 12)
+        if ( freeSize < 1024 * 24)
         {
             ESP_LOGI(TAG, "freeSize=%d",  freeSize);
             continue;
