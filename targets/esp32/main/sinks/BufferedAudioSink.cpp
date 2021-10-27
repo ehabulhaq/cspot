@@ -51,7 +51,7 @@ static void meshFeed(void *pvParameters)
     {
         size = MWIFI_PAYLOAD_LEN;
         size_t itemSize;
-        if ( 1024 * 7 > (4096 * 8) - xRingbufferGetCurFreeSize(dataBuffer_mesh))
+        if ( 1456 * 1 > (4096 * 8) - xRingbufferGetCurFreeSize(dataBuffer_mesh))
         {
             vTaskDelay( 10 / portTICK_RATE_MS);
             continue;
@@ -66,11 +66,11 @@ static void meshFeed(void *pvParameters)
             ESP_LOGI(TAG, "freeSize=%d",  freeSize);
             continue;
         }
-        char *item = (char *)xRingbufferReceiveUpTo(dataBuffer_mesh, &itemSize, portMAX_DELAY, 1024 * 7);
+        char *item = (char *)xRingbufferReceiveUpTo(dataBuffer_mesh, &itemSize, portMAX_DELAY, 1456 * 1);
         
         _mesh_write(NULL, item, itemSize, portMAX_DELAY, NULL);
         vRingbufferReturnItem(dataBuffer_mesh, (void *)item);
-        vTaskDelay( 30 / portTICK_RATE_MS);
+        //vTaskDelay( 30 / portTICK_RATE_MS);
         
     }
 

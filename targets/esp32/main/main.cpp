@@ -34,6 +34,7 @@
 #include "board.h"
 #include "mdf_common.h"
 #include "mwifi.h"
+#include "mupgrade.h"
 #include "esp_netif.h"
 #include "freertos/event_groups.h"
 #include "lwip/err.h"
@@ -55,13 +56,18 @@
 
 static const char *TAG = "cspot";
 static esp_netif_t *netif_sta = NULL;
+uint8_t FW_update_flag = 1;
 
 std::shared_ptr<ConfigJSON> configMan;
 
 extern "C"
 {
     void app_main(void);
+    static void root_read_task(void *arg);
+    static void node_read_task(void *arg);
+    static void ota_task(void *arg);
 }
+
 static void cspotTask(void *pvParameters)
 {
     auto zeroconfAuthenticator = std::make_shared<ZeroconfAuthenticator>();
@@ -124,6 +130,302 @@ static void cspotTask(void *pvParameters)
         };
         mercuryManager->handleQueue();
     }
+}
+
+static void root_read_task(void *arg)
+{
+    mdf_err_t ret = MDF_OK;
+    char *data    = (char *)MDF_MALLOC(MWIFI_PAYLOAD_LEN);
+    size_t size   = MWIFI_PAYLOAD_LEN;
+    mwifi_data_type_t data_type      = {0};
+    uint8_t src_addr[MWIFI_ADDR_LEN] = {0};
+
+    MDF_LOGI("Root read task is running");
+
+
+    while (FW_update_flag == 1) {
+        size = MWIFI_PAYLOAD_LEN;
+        memset(data, 0, MWIFI_PAYLOAD_LEN);
+        ret = mwifi_root_read(src_addr, &data_type, data, &size, portMAX_DELAY);
+        MDF_ERROR_CONTINUE(ret != MDF_OK, "<%s> mwifi_root_recv", mdf_err_to_name(ret));
+
+        if (data_type.upgrade) { // This mesh package contains upgrade data.
+            ret = mupgrade_root_handle(src_addr, data, size);
+            MDF_ERROR_CONTINUE(ret != MDF_OK, "<%s> mupgrade_root_handle", mdf_err_to_name(ret));
+        } else {
+            MDF_LOGI("Receive [NODE] addr: " MACSTR ", size: %d, data: %s",
+                     MAC2STR(src_addr), size, data);
+        }
+    }
+
+    MDF_LOGW("Root read task is exit");
+
+    MDF_FREE(data);
+    vTaskDelete(NULL);
+}
+
+/**
+ * @brief Handling data between wifi mesh devices.
+ */
+static void node_read_task(void *arg)
+{
+    mdf_err_t ret = MDF_OK;
+    char *data    = (char *) MDF_MALLOC(MWIFI_PAYLOAD_LEN);
+    size_t size   = MWIFI_PAYLOAD_LEN;
+    mwifi_data_type_t data_type      = {0x0};
+    uint8_t src_addr[MWIFI_ADDR_LEN] = {0};
+
+    MDF_LOGI("Node read task is running");
+
+    while (FW_update_flag == 1) {
+        size = MWIFI_PAYLOAD_LEN;
+        memset(data, 0, MWIFI_PAYLOAD_LEN);
+        ret = mwifi_read(src_addr, &data_type, data, &size, portMAX_DELAY);
+        MDF_ERROR_CONTINUE(ret != MDF_OK, "<%s> mwifi_root_recv", mdf_err_to_name(ret));
+
+        if (data_type.upgrade) { // This mesh package contains upgrade data.
+            ret = mupgrade_handle(src_addr, data, size);
+            MDF_ERROR_CONTINUE(ret != MDF_OK, "<%s> mupgrade_handle", mdf_err_to_name(ret));
+        } else {
+            MDF_LOGI("Receive [ROOT] addr: " MACSTR ", size: %d, data: %s",
+                     MAC2STR(src_addr), size, data);
+
+            /**
+             * @brief Finally, the node receives a restart notification. Restart it yourself..
+             */
+            if (!strcmp(data, "restart")) {
+                MDF_LOGI("Restart the version of the switching device");
+                MDF_LOGW("The device will restart after 3 seconds");
+                vTaskDelay(pdMS_TO_TICKS(3000));
+                esp_restart();
+            }
+        }
+    }
+
+    MDF_LOGW("Node read task is exit");
+
+    MDF_FREE(data);
+    vTaskDelete(NULL);
+}
+
+
+#define FIRMWARE_FILE_NAME_NODE                 "Node_speaker.bin"
+#define CONFIG_FIRMWARE_UPGRADE_URL_NODE        "http://192.168.1.11:8070/Desktop/brian_stover/Node_speaker/build/Node_speaker.bin" 
+
+
+#define FIRMWARE_FILE_NAME_ROOT                 "cspot-esp32.bin"
+#define CONFIG_FIRMWARE_UPGRADE_URL_ROOT        "http://192.168.1.11:8070/Desktop/brian_stover/cspot/targets/esp32/build/cspot-esp32.bin"
+
+
+static void ota_task(void *arg)
+{
+    mdf_err_t ret       = MDF_OK;
+    uint8_t *data       = (uint8_t*)MDF_MALLOC(MWIFI_PAYLOAD_LEN);
+    char name[32]       = {0x0};
+    int total_size   = 0;
+    int start_time      = 0;
+    mupgrade_result_t upgrade_result = {0};
+    mwifi_data_type_t data_type = {.communicate = MWIFI_COMMUNICATE_MULTICAST};
+
+    /**
+     * @note If you need to upgrade all devices, pass MWIFI_ADDR_ANY;
+     *       If you upgrade the incoming address list to the specified device
+     */
+    // uint8_t dest_addr[][MWIFI_ADDR_LEN] = {{0x1, 0x1, 0x1, 0x1, 0x1, 0x1}, {0x2, 0x2, 0x2, 0x2, 0x2, 0x2},};
+    uint8_t dest_addr[][MWIFI_ADDR_LEN] = {MWIFI_ADDR_ANY};
+
+    /**
+     * @brief In order to allow more nodes to join the mesh network for firmware upgrade,
+     *      in the example we will start the firmware upgrade after 30 seconds.
+     */
+    vTaskDelay(10 * 1000 / portTICK_PERIOD_MS);
+
+    esp_http_client_config_t config = {
+        .url            = CONFIG_FIRMWARE_UPGRADE_URL_NODE,
+        .transport_type = HTTP_TRANSPORT_UNKNOWN,
+    };
+
+    /**
+     * @brief 1. Connect to the server
+     */
+    esp_http_client_handle_t client = esp_http_client_init(&config);
+    //MDF_ERROR_GOTO(!client, EXIT, "Initialise HTTP connection");
+
+    start_time = xTaskGetTickCount();
+
+    MDF_LOGI("Open HTTP connection: %s", CONFIG_FIRMWARE_UPGRADE_URL_NODE);
+
+    /**
+     * @brief First, the firmware is obtained from the http server and stored on the root node.
+     */
+    do {
+        ret = esp_http_client_open(client, 0);
+
+        if (ret != MDF_OK) {
+            if (!esp_mesh_is_root()) {
+                return;
+            }
+
+            vTaskDelay(pdMS_TO_TICKS(1000));
+            MDF_LOGW("<%s> Connection service failed", mdf_err_to_name(ret));
+        }
+    } while (ret != MDF_OK  && (xTaskGetTickCount() - start_time) * portTICK_RATE_MS / 1000  < 8); //break if more than 10 seconds
+
+    if (ret != MDF_OK )
+    {
+        FW_update_flag = 0;  //signal other ota necessary tasks to exit as well
+        xTaskCreatePinnedToCore(&cspotTask, "cspot", 8192 * 8, NULL, 5, NULL, 0); // run the cspot task and get out
+        
+        MDF_FREE(data);
+        vTaskDelete(NULL);
+        return;         // exit the ota_task. No firmware upgrade is happening today.
+    }
+
+    total_size = esp_http_client_fetch_headers(client);
+    //sscanf(CONFIG_FIRMWARE_UPGRADE_URL, "%*[^/]//%*[^/]/%[^.]", name);
+
+    if (total_size <= 0) {
+        MDF_LOGW("Please check the address of the server");
+        ret = esp_http_client_read(client, (char *)data, MWIFI_PAYLOAD_LEN);
+        //MDF_ERROR_GOTO(ret < 0, EXIT, "<%s> Read data from http stream", mdf_err_to_name(ret));
+
+        MDF_LOGW("Recv data: %.*s", ret, data);
+        return;
+    }
+
+    /**
+     * @brief 2. Initialize the upgrade status and erase the upgrade partition.
+     */
+    ret = mupgrade_firmware_init(FIRMWARE_FILE_NAME_NODE, total_size);
+    //MDF_ERROR_GOTO(ret != MDF_OK, EXIT, "<%s> Initialize the upgrade status", mdf_err_to_name(ret));
+
+    /**
+     * @brief 3. Read firmware from the server and write it to the flash of the root node
+     */
+    for (ssize_t size = 0, recv_size = 0; recv_size < total_size; recv_size += size) {
+        size = esp_http_client_read(client, (char *)data, MWIFI_PAYLOAD_LEN);
+        //MDF_ERROR_GOTO(size < 0, EXIT, "<%s> Read data from http stream", mdf_err_to_name(ret));
+
+        if (size > 0) {
+            /* @brief  Write firmware to flash */
+            ret = mupgrade_firmware_download(data, size);
+            //MDF_ERROR_GOTO(ret != MDF_OK, EXIT, "<%s> Write firmware to flash, size: %d, data: %.*s",
+            //               mdf_err_to_name(ret), size, size, data);
+        } else {
+            MDF_LOGW("<%s> esp_http_client_read", mdf_err_to_name(ret));
+            return;
+        }
+    }
+
+    MDF_LOGI("The service download firmware is complete, Spend time: %ds",
+             (xTaskGetTickCount() - start_time) * portTICK_RATE_MS / 1000);
+
+    start_time = xTaskGetTickCount();
+
+    /**
+     * @brief 4. The firmware will be sent to each node.
+     */
+    ret = mupgrade_firmware_send((uint8_t *)dest_addr, sizeof(dest_addr) / MWIFI_ADDR_LEN, &upgrade_result);
+    //MDF_ERROR_GOTO(ret != MDF_OK, EXIT, "<%s> mupgrade_firmware_send", mdf_err_to_name(ret));
+
+    if (upgrade_result.successed_num == 0) {
+        MDF_LOGW("Devices upgrade failed, unfinished_num: %d", upgrade_result.unfinished_num);
+        return;
+    }
+
+    MDF_LOGI("Firmware is sent to the device to complete, Spend time: %ds",
+             (xTaskGetTickCount() - start_time) * portTICK_RATE_MS / 1000);
+    MDF_LOGI("Devices upgrade completed, successed_num: %d, unfinished_num: %d", upgrade_result.successed_num, upgrade_result.unfinished_num);
+
+    // Root downloads its own firmware from the server
+
+    //mupgrade_result_free(&upgrade_result);
+    esp_http_client_close(client);
+    esp_http_client_cleanup(client);
+
+    esp_http_client_config_t config_root = {
+        .url            = CONFIG_FIRMWARE_UPGRADE_URL_ROOT,
+        .transport_type = HTTP_TRANSPORT_UNKNOWN,
+    };
+
+    /**
+     * @brief 1. Connect to the server
+     */
+    client = esp_http_client_init(&config_root);
+    //MDF_ERROR_GOTO(!client, EXIT, "Initialise HTTP connection");
+
+    start_time = xTaskGetTickCount();
+
+    MDF_LOGI("Open HTTP connection: %s", CONFIG_FIRMWARE_UPGRADE_URL_ROOT);
+
+    /**
+     * @brief First, the firmware is obtained from the http server and stored on the root node.
+     */
+    do {
+        ret = esp_http_client_open(client, 0);
+
+        if (ret != MDF_OK) {
+            if (!esp_mesh_is_root()) {
+                return;
+            }
+
+            vTaskDelay(pdMS_TO_TICKS(1000));
+            MDF_LOGW("<%s> Connection service failed", mdf_err_to_name(ret));
+        }
+    } while (ret != MDF_OK);
+
+
+
+    total_size = esp_http_client_fetch_headers(client);
+    //sscanf(CONFIG_FIRMWARE_UPGRADE_URL, "%*[^/]//%*[^/]/%[^.]", name);
+
+    if (total_size <= 0) {
+        MDF_LOGW("Please check the address of the server");
+        ret = esp_http_client_read(client, (char *)data, MWIFI_PAYLOAD_LEN);
+        //MDF_ERROR_GOTO(ret < 0, EXIT, "<%s> Read data from http stream", mdf_err_to_name(ret));
+
+        MDF_LOGW("Recv data: %.*s", ret, data);
+        return;
+    }
+
+    /**
+     * @brief 2. Initialize the upgrade status and erase the upgrade partition.
+     */
+    ret = mupgrade_firmware_init(FIRMWARE_FILE_NAME_ROOT, total_size);
+    //MDF_ERROR_GOTO(ret != MDF_OK, EXIT, "<%s> Initialize the upgrade status", mdf_err_to_name(ret));
+
+    /**
+     * @brief 3. Read firmware from the server and write it to the flash of the root node
+     */
+    for (ssize_t size = 0, recv_size = 0; recv_size < total_size; recv_size += size) {
+        size = esp_http_client_read(client, (char *)data, MWIFI_PAYLOAD_LEN);
+        //MDF_ERROR_GOTO(size < 0, EXIT, "<%s> Read data from http stream", mdf_err_to_name(ret));
+
+        if (size > 0) {
+            /* @brief  Write firmware to flash */
+            ret = mupgrade_firmware_download(data, size);
+            //MDF_ERROR_GOTO(ret != MDF_OK, EXIT, "<%s> Write firmware to flash, size: %d, data: %.*s",
+            //               mdf_err_to_name(ret), size, size, data);
+        } else {
+            MDF_LOGW("<%s> esp_http_client_read", mdf_err_to_name(ret));
+            return;
+        }
+    }
+
+    // 
+    /**
+     * @brief 5. the root notifies nodes to restart
+     */
+    const char *restart_str = "restart";
+    ret = mwifi_root_write(upgrade_result.successed_addr, upgrade_result.successed_num,
+                           &data_type, restart_str, strlen(restart_str), true);
+    //MDF_ERROR_GOTO(ret != MDF_OK, EXIT, "<%s> mwifi_root_recv", mdf_err_to_name(ret));
+
+    MDF_FREE(data);
+    mupgrade_result_free(&upgrade_result);
+    esp_http_client_close(client);
+    esp_http_client_cleanup(client);
+    vTaskDelete(NULL);
 }
 
 void init_spiffs()
@@ -209,6 +511,14 @@ static mdf_err_t event_loop_cb(mdf_event_loop_t event, void *ctx)
         {
             esp_netif_dhcpc_start(netif_sta);
         }
+
+        xTaskCreate(node_read_task, "node_read_task", 4 * 1024,
+                        NULL, CONFIG_MDF_TASK_DEFAULT_PRIOTY, NULL);
+
+            if (esp_mesh_get_layer() == MESH_ROOT_LAYER) {
+                xTaskCreate(root_read_task, "root_read_task", 4 * 1024,
+                            NULL, CONFIG_MDF_TASK_DEFAULT_PRIOTY, NULL);
+            }
         break;
 
     case MDF_EVENT_MWIFI_ROUTING_TABLE_ADD:
@@ -228,7 +538,8 @@ static mdf_err_t event_loop_cb(mdf_event_loop_t event, void *ctx)
     case MDF_EVENT_MWIFI_ROOT_GOT_IP:
         MDF_LOGI("Root obtains the IP address. It is posted by LwIP stack automatically");
         //ESP_ERROR_CHECK(example_connect());
-        xTaskCreatePinnedToCore(&cspotTask, "cspot", 8192 * 8, NULL, 5, NULL, 0);
+         xTaskCreate(ota_task, "ota_task", 4 * 1024,
+                        NULL, CONFIG_MDF_TASK_DEFAULT_PRIOTY, NULL);
         break;
     default:
         break;
