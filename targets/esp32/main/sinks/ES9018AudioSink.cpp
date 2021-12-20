@@ -6,7 +6,7 @@ ES9018AudioSink::ES9018AudioSink()
 {
     i2s_config_t i2s_config = {
 
-        .mode = (i2s_mode_t)(I2S_MODE_MASTER | I2S_MODE_TX| I2S_MODE_RX), // Only TX
+        .mode = (i2s_mode_t)(I2S_MODE_SLAVE | I2S_MODE_TX| I2S_MODE_RX), // Only TX
         .sample_rate = 44100,
         .bits_per_sample = (i2s_bits_per_sample_t)16,
         .channel_format = I2S_CHANNEL_FMT_ONLY_LEFT, //2-channels

@@ -127,19 +127,6 @@ CONFIG_PARTITION_TABLE_MD5=y
 # end of Partition Table
 
 #
-# Example Configuration
-#
-# CONFIG_DEVICE_TYPE_ROOT is not set
-CONFIG_DEVICE_TYPE_NODE=y
-# CONFIG_DEVICE_TYPE_LEAF is not set
-CONFIG_DEVICE_TYPE=2
-CONFIG_MESH_ID="123456"
-CONFIG_MESH_CHANNEL=13
-CONFIG_WIFI_SSID="myssid"
-CONFIG_WIFI_PASSWORD="mypassword"
-# end of Example Configuration
-
-#
 # Example Connection Configuration
 #
 CONFIG_EXAMPLE_CONNECT_WIFI=y
@@ -164,6 +151,7 @@ CONFIG_ESP_LYRAT_V4_3_BOARD=y
 # CONFIG_ESP_LYRAT_MINI_V1_1_BOARD is not set
 # CONFIG_ESP32_KORVO_DU1906_BOARD is not set
 # CONFIG_ESP32_S2_KALUGA_1_V1_2_BOARD is not set
+# CONFIG_ESP32_S3_KORVO2_V3_BOARD is not set
 # end of Audio HAL
 
 #
@@ -309,6 +297,19 @@ CONFIG_CN_SPEECH_COMMAND_ID98=""
 CONFIG_CN_SPEECH_COMMAND_ID99=""
 # end of Add speech commands
 # end of ESP Speech Recognition
+
+#
+# Example Configuration
+#
+# CONFIG_DEVICE_TYPE_ROOT is not set
+CONFIG_DEVICE_TYPE_NODE=y
+# CONFIG_DEVICE_TYPE_LEAF is not set
+CONFIG_DEVICE_TYPE=2
+CONFIG_MESH_ID="123456"
+CONFIG_MESH_CHANNEL=13
+CONFIG_WIFI_SSID="myssid"
+CONFIG_WIFI_PASSWORD="mypassword"
+# end of Example Configuration
 
 #
 # Compiler options
@@ -1734,6 +1735,12 @@ CONFIG_MWIFI_RETRANSMIT_ENABLE=y
 CONFIG_MWIFI_DATA_DROP_ENABLE=y
 CONFIG_MWIFI_MESH_IE_ENABLE=y
 # end of Transmission config
+
+#
+# Power save config
+#
+# CONFIG_MWIFI_ENABLE_PS is not set
+# end of Power save config
 # end of MDF Mwifi
 
 # CONFIG_ALIYUN_IOT_NEW_SDK is not set

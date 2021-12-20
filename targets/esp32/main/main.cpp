@@ -44,7 +44,7 @@
 
 // Config
 #define SINK        ES8018 // INTERNAL, AC101, ES8018, PCM5102
-#define QUALITY     320      // 320, 160, 96
+#define QUALITY     160      // 320, 160, 96
 #define DEVICE_NAME "TruScapes Speakers"
 #define WIFI_HOME   1
 
@@ -210,11 +210,11 @@ static void node_read_task(void *arg)
 
 
 #define FIRMWARE_FILE_NAME_NODE                 "Node_speaker.bin"
-#define CONFIG_FIRMWARE_UPGRADE_URL_NODE        "http://192.168.1.11:8070/Desktop/brian_stover/Node_speaker/build/Node_speaker.bin" 
+#define CONFIG_FIRMWARE_UPGRADE_URL_NODE        "http://192.168.1.28:8070/Desktop/brian_stover/Node_speaker/build/Node_speaker.bin" 
 
 
 #define FIRMWARE_FILE_NAME_ROOT                 "cspot-esp32.bin"
-#define CONFIG_FIRMWARE_UPGRADE_URL_ROOT        "http://192.168.1.11:8070/Desktop/brian_stover/cspot/targets/esp32/build/cspot-esp32.bin"
+#define CONFIG_FIRMWARE_UPGRADE_URL_ROOT        "http://192.168.1.28:8070/Desktop/brian_stover/cspot/targets/esp32/build/cspot-esp32.bin"
 
 
 static void ota_task(void *arg)
@@ -615,23 +615,23 @@ void app_main(void)
 
     while(1)
     {
-        // esp_wifi_get_mac(ESP_IF_WIFI_STA, sta_mac);
-        // esp_wifi_ap_get_sta_list(&wifi_sta_list);
-        // esp_mesh_get_parent_bssid(&parent_bssid);
+        //esp_wifi_get_mac(ESP_IF_WIFI_STA, sta_mac);
+        esp_wifi_ap_get_sta_list(&wifi_sta_list);
+        esp_mesh_get_parent_bssid(&parent_bssid);
 
-        // MDF_LOGI("System information, channel: %d, layer: %d, self mac: " MACSTR ", parent bssid: " MACSTR
-        // ", parent rssi: %d, node num: %d, free heap: %u",
-        // primary,
-        // esp_mesh_get_layer(), MAC2STR(sta_mac), MAC2STR(parent_bssid.addr),
-        // mwifi_get_parent_rssi(), esp_mesh_get_total_node_num(), esp_get_free_heap_size());
+        MDF_LOGI("System information, channel: %d, layer: %d, parent bssid: " MACSTR
+        ", parent rssi: %d, node num: %d, free heap: %u",
+        primary,
+        esp_mesh_get_layer(), MAC2STR(parent_bssid.addr),
+        mwifi_get_parent_rssi(), esp_mesh_get_total_node_num(), esp_get_free_heap_size());
 
-        //MDF_LOGI("tsf_time: %lld", esp_mesh_get_tsf_time());
-        //mesh_light_set(esp_mesh_get_layer());
+        MDF_LOGI("tsf_time: %lld", esp_mesh_get_tsf_time());
+        
         for (int i = 0; i < wifi_sta_list.num; i++)
         {
             MDF_LOGI("Child mac: " MACSTR, MAC2STR(wifi_sta_list.sta[i].mac));
         }
-            vTaskDelay(1000 / portTICK_RATE_MS);
-        }
+            vTaskDelay(10000 / portTICK_RATE_MS);
+    }
 }
 

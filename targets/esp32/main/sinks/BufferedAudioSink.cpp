@@ -51,7 +51,7 @@ static void meshFeed(void *pvParameters)
     {
         size = MWIFI_PAYLOAD_LEN;
         size_t itemSize;
-        if ( 1456 * 1 > (4096 * 8) - xRingbufferGetCurFreeSize(dataBuffer_mesh))
+        if ( 1456 * 4 > (4096 * 8) - xRingbufferGetCurFreeSize(dataBuffer_mesh))
         {
             vTaskDelay( 10 / portTICK_RATE_MS);
             continue;
@@ -66,7 +66,7 @@ static void meshFeed(void *pvParameters)
             ESP_LOGI(TAG, "freeSize=%d",  freeSize);
             continue;
         }
-        char *item = (char *)xRingbufferReceiveUpTo(dataBuffer_mesh, &itemSize, portMAX_DELAY, 1456 * 1);
+        char *item = (char *)xRingbufferReceiveUpTo(dataBuffer_mesh, &itemSize, portMAX_DELAY, 1456 * 4);
         
         _mesh_write(NULL, item, itemSize, portMAX_DELAY, NULL);
         vRingbufferReturnItem(dataBuffer_mesh, (void *)item);
@@ -114,12 +114,26 @@ static void stereo_to_mono(void *pvParameters)
 
 }
 
+static void i2s_inputFeed(void *pvParameters)
+{
+    char data [1024];
+    size_t size = 1024;
+
+    while (true)
+    {
+        size_t bytes_read = 0;
+        i2s_read((i2s_port_t)0, data, size, &bytes_read, portMAX_DELAY);
+        xRingbufferSend(dataBuffer_stereo, data, bytes_read, portMAX_DELAY);
+    }
+}
+
 void BufferedAudioSink::startI2sFeed()
 {
     dataBuffer = xRingbufferCreate(4096 * 8, RINGBUF_TYPE_BYTEBUF);
     dataBuffer_mesh = xRingbufferCreate(4096 * 8, RINGBUF_TYPE_BYTEBUF);
     dataBuffer_stereo = xRingbufferCreate(4096 * 8, RINGBUF_TYPE_BYTEBUF);
-    xTaskCreatePinnedToCore(&i2sFeed, "i2sFeed", 4096, NULL, 10, NULL, 1);
+    //xTaskCreatePinnedToCore(&i2sFeed, "i2sFeed", 4096, NULL, 10, NULL, 1);
+    xTaskCreatePinnedToCore(&i2s_inputFeed, "i2s_inputFeed", 4096, NULL, 6, NULL, 1);
     xTaskCreatePinnedToCore(&meshFeed, "meshFeed", 4096, NULL, 6, NULL, 1);
     xTaskCreatePinnedToCore(&stereo_to_mono, "stereo_to_mono", 4096, NULL, 6, NULL, 1);
 }
@@ -127,7 +141,7 @@ void BufferedAudioSink::startI2sFeed()
 void BufferedAudioSink::feedPCMFrames(std::vector<uint8_t> &data)
 {
     
-    xRingbufferSend(dataBuffer_stereo, &data[0], data.size(), portMAX_DELAY);
+    //xRingbufferSend(dataBuffer_stereo, &data[0], data.size(), portMAX_DELAY);
      
 }
 
